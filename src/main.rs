@@ -189,10 +189,17 @@ async fn main() -> Result<()> {
                         gtk4::glib::timeout_future(retry_delay).await;
                         retry_delay = retry_delay.saturating_mul(2);
                     } else {
+                        // We are a polkit authentication agent: without a
+                        // successful registration we cannot answer any auth
+                        // request. Exit so the service manager restarts us
+                        // with a clean registration instead of lingering as
+                        // a silent listener until the next polkit restart.
                         tracing::error!(
                             attempt,
-                            "Giving up reregistration until the next polkit restart."
+                            "Reregistration failed after {} attempts; exiting.",
+                            REREGISTER_MAX_ATTEMPTS
                         );
+                        std::process::exit(1);
                     }
                 }
             }
